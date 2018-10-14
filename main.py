@@ -10,7 +10,7 @@ class MainWindow(Frame):
 		self.parent = parent
 		self.initUI()
 		self.centerWindow()
-		self.conn = sqlite3.connect('datebase/dates')
+		self.conn = sqlite3.connect('database/dates')
 		self.curs = self.conn.cursor()
 		self.curs.execute('select * from history')
 		self.spisok = []
