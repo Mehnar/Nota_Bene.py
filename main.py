@@ -9,7 +9,7 @@ class MainWindow(Frame):
 		super().__init__(parent, background = 'white')
 		self.parent = parent
 		self.initUI()
-		self.centerWindow()
+		self.centerWindow(self.parent, 620, 400)
 		self.conn = sqlite3.connect('database/dates')
 		self.curs = self.conn.cursor()
 		self.curs.execute('select * from history')
@@ -20,14 +20,14 @@ class MainWindow(Frame):
 		self.spisok = sorted(self.spisok, key = self.by_number)
 		self.idx = 0
 
-	def centerWindow(self):
-		w = 620
-		h = 400
+	def centerWindow(self, window, width, height):
+		w = width
+		h = height
 		sw = self.parent.winfo_screenwidth()
 		sh = self.parent.winfo_screenheight()
-		x = (sw - w)/2
-		y = (sh - h)/2
-		self.parent.geometry('%dx%d+%d+%d' % (w, h, x, y))
+		x = (sw - width)/2
+		y = (sh - height)/2
+		window.geometry('%dx%d+%d+%d' % (w, h, x, y))
 
 	def by_number(self, key):
 			return int(key[0])
@@ -71,6 +71,7 @@ class MainWindow(Frame):
 		sub.title("Watch dates")
 		sub.transient(self)
 		sub.title('All dates')
+		self.centerWindow(sub, 320, 240)
 		sub.minsize(320, 240)
 		sub.maxsize(480, 320)
 
@@ -102,6 +103,7 @@ class MainWindow(Frame):
 		sub.bind("<Delete>", lambda *args: self.deleteDate())
 		self.lb.select_set(0)
 		self.lb.event_generate("<<ListboxSelect>>")
+		sub.focus_set()
 		sub.grab_set()
 		sub.wait_window()
 		sub.mainloop()
@@ -131,6 +133,7 @@ class MainWindow(Frame):
 		subOver = Toplevel(sub)
 		subOver.title("Edit date")
 		subOver.transient(sub)
+		self.centerWindow(subOver, 320, 240)
 		subOver.minsize(320, 150)
 		subOver.maxsize(320, 150)
 		newDate = Label(subOver, text = "Enter date")
@@ -182,6 +185,7 @@ class MainWindow(Frame):
 		try:
 			subOver = Toplevel(sub)
 			subOver.transient(sub)
+			self.centerWindow(subOver, 320, 240)
 			subOver.minsize(320, 150)
 			subOver.maxsize(320, 150)
 			newDate = Label(subOver, text = "Enter date")
@@ -262,10 +266,10 @@ class MainWindow(Frame):
 					question.set("{}?".format(self.event))
 					entry_question.delete(0, END)
 					entry_question.focus_set()
-
 			def showResult():
 				result_window = Toplevel(self)
 				result_window.transient(self)
+				self.centerWindow(result_window, 320, 240)
 				result_window.minsize(320, 140)
 				result_window.title("Test is over!")
 				result = StringVar()
@@ -277,6 +281,8 @@ class MainWindow(Frame):
 					for x in uncorrect:
 						temp_dict[x[1]] = TestError(result_window, x)
 				result_window.bind("<Escape>", lambda *args: self.closeSub(result_window))
+				result_window.focus_set()
+				result_window.mainloop()
 
 			number = int(self.scale.get())
 			if number == 0:
@@ -285,6 +291,7 @@ class MainWindow(Frame):
 			self.closeSub(ask_window)
 			test_window = Toplevel(self)
 			test_window.transient(self)
+			self.centerWindow(test_window, 320, 240)
 			test_window.minsize(320, 140)
 			test_window.maxsize(320, 220)
 			question = StringVar()
@@ -320,6 +327,7 @@ class MainWindow(Frame):
 
 		ask_window = Toplevel(self)
 		ask_window.transient(self)
+		self.centerWindow(ask_window, 320, 240)
 		ask_window.minsize(320, 200)
 		ask_window.maxsize(320, 220)
 		ask_window.title("Creating test")
@@ -337,7 +345,7 @@ class MainWindow(Frame):
 			self.var.trace_add('write', lambda *args: self.onScale_callback(self.var, self.scale))
 		except AttributeError:
 			#python <3.6
-			self.var.trace('write', lambda *args: self.onScale_callback(self.var, self.scale))
+                        self.var.trace('w', lambda *args: self.onScale_callback(self.var, self.scale))
 		button_start = Button(ask_window, text = "Start", command = lambda *args: startTest(ask_window))
 		button_start.pack(pady = 10)
 		ask_window.bind("<Return>", lambda *args: startTest(ask_window))
@@ -349,13 +357,13 @@ class MainWindow(Frame):
 	def reference(self):
 		ref_window = Toplevel(self)
 		ref_window.transient(self)
+		self.centerWindow(ref_window, 320, 80)
 		ref_window.minsize(320, 80)
 		ref_window.maxsize(320, 220)
 		ref_window.title("Creating test")
 		label_1 = Label(ref_window, text = "Nota Bene! Created by Mehnar 2018 v0.0.1")
 		label_1.pack(pady = 20)
 		ref_window.bind("<Escape>", lambda *args: self.closeSub(ref_window))
-
 	def onSelect(self, val):
 		sender = val.widget
 		try:
