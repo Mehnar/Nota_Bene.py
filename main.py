@@ -1,3 +1,4 @@
+import os
 import sqlite3
 from tkinter import *
 import tkinter.messagebox as mbox
@@ -10,9 +11,19 @@ class MainWindow(Frame):
 		self.parent = parent
 		self.initUI()
 		self.centerWindow(self.parent, 620, 400)
-		self.conn = sqlite3.connect('database/dates')
+		try:
+			self.conn = sqlite3.connect('database/dates.db')
+			self.curs = self.conn.cursor()
+			self.curs.execute('select * from history')
+		except sqlite3.OperationalError:
+			if not (os.path.exists(os.path.join(os.getcwd(), 'database'))):
+				os.mkdir('database')
+			self.conn = sqlite3.connect('database/dates.db')
+			self.curs = self.conn.cursor()
+			self.curs.execute('create table history (date TEXT, texts TEXT)')
 		self.curs = self.conn.cursor()
 		self.curs.execute('select * from history')
+		
 		self.spisok = []
 		for x in self.curs.fetchall():
 			self.spisok.append([item for item in x])
@@ -47,7 +58,7 @@ class MainWindow(Frame):
 		watchMenu = Menu(menubar)
 		watchMenu.add_command(label="Reference", command = self.reference)
 		menubar.add_cascade(label="Info", menu = watchMenu)
-		self.parent.bind("<Escape>", self.onExit)
+		self.parent.bind("<Escape>", lambda *args: self.parent.destroy())
 
 		tex = "\tЭта программа создана для изучения и повторения исторических дат. Добавьте даты, которые вы хотите \
 				выучить и нажмите \"Составить тест\". После того, как вы ответите на все вопросы, вам покажет количество \
@@ -72,7 +83,7 @@ class MainWindow(Frame):
 		sub.transient(self)
 		sub.title('All dates')
 		self.centerWindow(sub, 320, 240)
-		sub.minsize(320, 240)
+		sub.minsize(320, 260)
 		sub.maxsize(480, 320)
 
 		listFrame = Frame(sub)
@@ -103,7 +114,7 @@ class MainWindow(Frame):
 		sub.bind("<Delete>", lambda *args: self.deleteDate())
 		self.lb.select_set(0)
 		self.lb.event_generate("<<ListboxSelect>>")
-		sub.focus_set()
+		self.lb.focus_set()
 		sub.grab_set()
 		sub.wait_window()
 		sub.mainloop()
@@ -113,22 +124,26 @@ class MainWindow(Frame):
 		def add():
 			if ( not entryDate.get().isdigit() ):
 				mbox.showerror("Error", "You date isn't number!")
+			if ( len(entryEvent.get()) == 0 ):
+				mbox.showerror("Error", "You event is empty!")
 			else:
 				date = entryDate.get()
-				event = entryEvent.get().strip();
-				self.curs.execute('insert into history values (?,?)', (date, event))
-				self.conn.commit()
-				self.spisok.append([date, event])
-				self.spisok = sorted(self.spisok, key = self.by_number)
-				self.lb.insert(self.spisok.index([date, event]),' - '.join([date, event]))
-				self.lb.select_clear(0, END)
-				self.lb.select_set(self.spisok.index([date, event]))
-				self.lb.event_generate("<<ListboxSelect>>")
-				self.lb.see(self.spisok.index([date, event]))
-				entryDate.delete(0, END)
-				entryEvent.delete(0, END)
-				entryDate.focus_set()
-
+				event = entryEvent.get().strip()
+				try:
+					self.curs.execute('insert into history values (?,?)', (date, event))
+					self.conn.commit()
+					self.spisok.append([date, event])
+					self.spisok = sorted(self.spisok, key = self.by_number)
+					self.lb.insert(self.spisok.index([date, event]),' - '.join([date, event]))
+					self.lb.select_clear(0, END)
+					self.lb.select_set(self.spisok.index([date, event]))
+					self.lb.event_generate("<<ListboxSelect>>")
+					self.lb.see(self.spisok.index([date, event]))
+					entryDate.delete(0, END)
+					entryEvent.delete(0, END)
+					entryDate.focus_set()
+				except sqlite3.OperationalError:
+					mbox.showerror("Database error", "Restart the app")
 
 		subOver = Toplevel(sub)
 		subOver.title("Edit date")
@@ -165,24 +180,32 @@ class MainWindow(Frame):
 		def edit():
 			if ( not entryDate.get().isdigit() ):
 				mbox.showerror("Error", "You date isn't number!")
+			if ( len(entryEvent.get()) == 0 ):
+				mbox.showerror("Error", "You event is empty!")
 			else:
-				date = entryDate.get()
-				event = entryEvent.get().strip();
-				self.lb.delete(self.idx)
-				toDel = self.spisok[self.idx][0]
-				self.spisok.pop(self.idx)
-				self.curs.execute('delete from history where date = ?', [toDel])
-				self.conn.commit()
-				self.curs.execute('insert into history values (?,?)', (date, event))
-				self.conn.commit()
-				self.spisok.append([date, event])
-				self.spisok = sorted(self.spisok, key = self.by_number)
-				self.lb.insert(self.spisok.index([date, event]),' - '.join([date, event]))
-				self.lb.select_set(self.spisok.index([date, event]))
-				self.lb.event_generate("<<ListboxSelect>>") 
+				try:
+					date = entryDate.get()
+					event = entryEvent.get().strip();
+					self.lb.delete(self.idx)
+					toDel = self.spisok.pop(self.idx)
+					self.curs.execute('update history set date = ?, texts = ? where date = ? and texts = ?', (date, event, toDel[0], toDel[1],))
+					self.conn.commit()
+					'''self.curs.execute('delete from history where date = ?', [toDel])
+					self.conn.commit()
+					self.curs.execute('insert into history values (?,?)', (date, event))
+					self.conn.commit()'''
+					self.spisok.append([date, event])
+					self.spisok = sorted(self.spisok, key = self.by_number)
+					self.lb.insert(self.spisok.index([date, event]),' - '.join([date, event]))
+					self.lb.select_set(self.spisok.index([date, event]))
+					self.lb.event_generate("<<ListboxSelect>>")
+				except sqlite3.OperationalError:
+					mbox.showerror("Database error", "Restart the app")
 				subOver.destroy()
 
 		try:
+			if len(self.spisok) == 0:
+				return
 			subOver = Toplevel(sub)
 			subOver.transient(sub)
 			self.centerWindow(subOver, 320, 240)
@@ -223,15 +246,15 @@ class MainWindow(Frame):
 
 	def deleteDate(self, *args):
 		try:
-			self.lb.delete(self.idx)
-			toDel = self.spisok[self.idx][0]
-			self.spisok.pop(self.idx)
-			self.curs.execute('delete from history where date = ?', [toDel])
+			toDel = self.spisok[self.idx]
+			self.curs.execute('delete from history where date = ? and texts = ?', (toDel[0], toDel[1]))
 			self.conn.commit()
-			self.lb.select_set(self.idx)
-			self.lb.event_generate("<<ListboxSelect>>")
+			self.lb.delete(self.idx)
+			self.spisok.pop(self.idx)
 		except IndexError:
 			pass
+		except sqlite3.OperationalError:
+			mbox.showerror("Database error", "Restart the app")
 	
 	def createTest(self):
 		class TestError():
@@ -242,7 +265,7 @@ class MainWindow(Frame):
 
 			def addLabel(self):
 				text = StringVar()
-				text.set("{}. {}. Ваш ответ: {} Правильный ответ: {}".format(self.uncorrect[0], self.uncorrect[1], self.uncorrect[2], self.uncorrect[3]))
+				text.set("  {}. {}. Ваш ответ: {}. Правильный ответ: {}  ".format(self.uncorrect[0], self.uncorrect[1], self.uncorrect[2], self.uncorrect[3]))
 				label = Label(self.parent, textvariable = text)
 				label.pack(fill = X, pady = 5)
 
@@ -269,7 +292,7 @@ class MainWindow(Frame):
 			def showResult():
 				result_window = Toplevel(self)
 				result_window.transient(self)
-				self.centerWindow(result_window, 320, 240)
+				#self.centerWindow(result_window, 320, 240)
 				result_window.minsize(320, 140)
 				result_window.title("Test is over!")
 				result = StringVar()
@@ -360,8 +383,8 @@ class MainWindow(Frame):
 		self.centerWindow(ref_window, 320, 80)
 		ref_window.minsize(320, 80)
 		ref_window.maxsize(320, 220)
-		ref_window.title("Creating test")
-		label_1 = Label(ref_window, text = "Nota Bene! Created by Mehnar 2018 v0.0.1")
+		ref_window.title("Info")
+		label_1 = Label(ref_window, text = "Nota Bene! Created by Mehnar 2018 v0.0.2")
 		label_1.pack(pady = 20)
 		ref_window.bind("<Escape>", lambda *args: self.closeSub(ref_window))
 	def onSelect(self, val):
@@ -375,7 +398,7 @@ class MainWindow(Frame):
 	def closeSub(self, sub):
 		sub.destroy()
 
-	def onExit(self, args):
+	def onExit(self, *args):
 		self.quit()	
 
 	def onScale_callback(self, var, scale):
@@ -401,9 +424,7 @@ def main():
 	root = Tk()
 	global app
 	app = MainWindow(root)
-
-
-	root.mainloop()
+	app.mainloop()
 	
 if __name__ == '__main__':
     main()
